@@ -91,14 +91,20 @@
                     <!-- Live Sync Indicator & Room Badge -->
                     <button onclick="openRoomModal()" class="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:border-slate-400 transition" title="Raum-Code ändern oder Verbindungsstatus prüfen">
                         <span id="sync-dot" class="w-2 h-2 rounded-full bg-slate-400 live-pulse"></span>
-                        <span id="sync-status-text">Verbinde…</span>
-                        <span class="px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-mono text-[11px] border border-slate-200 dark:border-slate-700" id="room-code-badge">b12</span>
+                        <span class="font-mono font-bold" id="room-code-badge">b12</span>
+                        <span id="sync-status-text" class="hidden sm:inline opacity-75">Live</span>
                     </button>
                 </div>
 
-                <!-- Right Controls: Share Link, Teacher Mode Toggle, Timer, Theme -->
+                <!-- Right Controls: Name Input, Share Link, Teacher Mode Toggle, Timer, Theme -->
                 <div class="flex flex-wrap items-center gap-2">
                     
+                    <!-- Optional Student Name Input for Teacher Statistics -->
+                    <div class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1">
+                        <span class="text-xs text-slate-400 mr-1.5">👤</span>
+                        <input type="text" id="voter-name-input" oninput="saveVoterName(this.value)" placeholder="Dein Vorname (optional)" maxlength="22" class="bg-transparent text-xs font-medium text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none w-32 sm:w-36" title="Name wird bei deiner Stimme für die Kursleitung angezeigt">
+                    </div>
+
                     <!-- Share Link & QR Code Button -->
                     <button onclick="openShareModal()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm flex items-center gap-1.5 transition" title="Link oder QR-Code für Teilnehmende teilen">
                         <span>🔗</span> <span class="hidden sm:inline">Teilen / QR</span>
@@ -151,6 +157,9 @@
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="toggleStatsPanel()" id="stats-toggle-btn" class="px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-bold text-xs flex items-center gap-1.5 transition">
+                        <span>📊</span> <span id="stats-toggle-label">Statistik & Übersicht</span>
+                    </button>
                     <button onclick="openCustomModal()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs flex items-center gap-1 transition">
                         <span>+ Eigene Frage</span>
                     </button>
@@ -223,6 +232,65 @@
         <div id="corners-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <!-- Dynamically rendered 4 corner cards -->
         </div>
+
+        <!-- 3b. TEACHER LIVE STATISTICS & OVERALL SUMMARY PANEL -->
+        <section id="teacher-stats-panel" class="hidden rounded-2xl bg-white dark:bg-slate-900 border-2 border-blue-600/30 dark:border-blue-500/30 shadow-sm overflow-hidden">
+            <div class="px-5 py-3.5 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded bg-blue-600 text-white text-[11px] font-bold uppercase tracking-wider">Kursleitung</span>
+                    <h3 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                        📊 Live-Auswertung & Gesamtübersicht aller Runden
+                    </h3>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="copyStatsReport()" class="px-3 py-1 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-semibold transition">
+                        📋 Ergebnis-Bericht kopieren
+                    </button>
+                    <button onclick="toggleStatsPanel()" class="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white px-2 py-1">
+                        Schließen ✕
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-5 space-y-6">
+                <!-- Current Round Detailed Breakdown -->
+                <div>
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            Aktuelle Runde im Detail (<span id="stats-current-round-title">Frage 1</span>)
+                        </div>
+                        <div id="stats-leading-badge" class="text-xs font-bold text-blue-600 dark:text-blue-400">
+                            Noch keine Stimmen abgegeben
+                        </div>
+                    </div>
+                    <div id="stats-current-round-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <!-- All Rounds Summary Table -->
+                <div class="pt-4 border-t border-slate-200 dark:border-slate-800">
+                    <div class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
+                        Gesamtübersicht aller Fragen (Stimmen, Spitzenreiter & Teilnehmende)
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold">
+                                    <th class="py-2 pr-3">Runde / Frage</th>
+                                    <th class="py-2 px-3 text-center">Stimmen</th>
+                                    <th class="py-2 px-3">Meistgewählt (Spitzenreiter)</th>
+                                    <th class="py-2 pl-3">Verteilung (A / B / C / D)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stats-all-rounds-tbody" class="divide-y divide-slate-200 dark:divide-slate-800">
+                                <!-- Dynamically populated -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
 
         <!-- 4. B1.2 REDEMITTEL & TEACHER FOLLOW-UP IMPULSES -->
         <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
@@ -536,6 +604,11 @@
         }
 
         const myVoterId = getOrCreateVoterId();
+        let myVoterName = '';
+        try {
+            myVoterName = localStorage.getItem('daf_b12_voter_name') || '';
+        } catch (e) {}
+
         const urlParams = new URLSearchParams(window.location.search);
         let currentRoomCode = (urlParams.get('room') || 'b12').toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'b12';
 
@@ -544,8 +617,23 @@
         const TEACHER_SESSION_UNLOCK_KEY = 'daf_b12_teacher_unlocked';
 
         let isTeacherMode = false;
+        let isTeacherStatsOpen = true;
         let isMultiVoteDemo = false;
         let impulseDrawerOpen = true;
+
+        function saveVoterName(val) {
+            myVoterName = (val || '').trim();
+            try {
+                localStorage.setItem('daf_b12_voter_name', myVoterName);
+            } catch (e) {}
+            appState.voterNames[myVoterId] = myVoterName;
+            renderAll();
+            publishAction({
+                type: 'SET_NAME',
+                voterId: myVoterId,
+                voterName: myVoterName
+            }, true);
+        }
 
         // =====================================================
         // 2. B1.2 ROUNDS DATA & APPLICATION STATE
@@ -620,7 +708,8 @@
         const appState = {
             activeRoundIndex: 0,
             customRounds: [],
-            votesByRound: { 0: {}, 1: {}, 2: {}, 3: {} }
+            votesByRound: { 0: {}, 1: {}, 2: {}, 3: {} },
+            voterNames: {}
         };
 
         function getAllRounds() {
@@ -648,14 +737,14 @@
             if (badge) badge.textContent = currentRoomCode;
 
             if (status === 'live') {
-                dot.className = 'w-2 h-2 rounded-full bg-emerald-500 live-pulse';
-                label.textContent = text || 'Live';
+                if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 live-pulse';
+                if (label) label.textContent = text || 'Live';
             } else if (status === 'connecting') {
-                dot.className = 'w-2 h-2 rounded-full bg-amber-500 live-pulse';
-                label.textContent = text || 'Verbinde…';
+                if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-500 live-pulse';
+                if (label) label.textContent = text || 'Verbinde…';
             } else {
-                dot.className = 'w-2 h-2 rounded-full bg-slate-400';
-                label.textContent = text || 'Lokal';
+                if (dot) dot.className = 'w-2 h-2 rounded-full bg-slate-400';
+                if (label) label.textContent = text || 'Lokal';
             }
         }
 
@@ -694,6 +783,11 @@
                 });
             }
 
+            if (remoteState.voterNames && typeof remoteState.voterNames === 'object') {
+                if (!appState.voterNames) appState.voterNames = {};
+                Object.assign(appState.voterNames, remoteState.voterNames);
+            }
+
             if (typeof remoteState.activeRoundIndex === 'number' && !isTeacherMode) {
                 const maxIdx = getAllRounds().length - 1;
                 appState.activeRoundIndex = Math.max(0, Math.min(maxIdx, remoteState.activeRoundIndex));
@@ -706,8 +800,12 @@
             if (!action || !action.type) return;
 
             if (action.type === 'VOTE') {
-                const { roundIdx, voterId, optionIdx } = action;
+                const { roundIdx, voterId, optionIdx, voterName } = action;
                 if (!appState.votesByRound[roundIdx]) appState.votesByRound[roundIdx] = {};
+                if (voterName !== undefined) {
+                    if (!appState.voterNames) appState.voterNames = {};
+                    appState.voterNames[voterId] = voterName;
+                }
                 if (optionIdx === null || optionIdx === undefined) {
                     delete appState.votesByRound[roundIdx][voterId];
                 } else {
@@ -715,6 +813,13 @@
                 }
                 saveStateToLocalCache();
                 renderAll();
+            } else if (action.type === 'SET_NAME') {
+                if (action.voterId) {
+                    if (!appState.voterNames) appState.voterNames = {};
+                    appState.voterNames[action.voterId] = action.voterName || '';
+                    saveStateToLocalCache();
+                    renderAll();
+                }
             } else if (action.type === 'CHANGE_ROUND') {
                 if (typeof action.roundIdx === 'number') {
                     appState.activeRoundIndex = action.roundIdx;
@@ -851,12 +956,17 @@
                 appState.votesByRound[rIdx][voterKey] = newChoice;
             }
 
+            if (myVoterName && voterKey === myVoterId) {
+                appState.voterNames[myVoterId] = myVoterName;
+            }
+
             renderAll();
             publishAction({
                 type: 'VOTE',
                 roundIdx: rIdx,
                 voterId: voterKey,
-                optionIdx: newChoice
+                optionIdx: newChoice,
+                voterName: voterKey === myVoterId ? myVoterName : undefined
             }, true);
         }
 
@@ -999,6 +1109,200 @@
                 li.textContent = item;
                 followupsList.appendChild(li);
             });
+
+            // 6. Render Teacher Live Statistics if in Teacher Mode
+            renderTeacherStats();
+        }
+
+        function getVoterDisplayName(vId, indexFallback) {
+            const custom = appState.voterNames && appState.voterNames[vId];
+            if (custom && custom.trim().length > 0) return custom.trim();
+            if (vId === myVoterId) return myVoterName || 'Ich';
+            if (vId.startsWith('demo_')) return `Demo #${indexFallback}`;
+            return `TN-${vId.slice(-3).toUpperCase()}`;
+        }
+
+        function renderTeacherStats() {
+            const panel = document.getElementById('teacher-stats-panel');
+            if (!panel) return;
+
+            if (!isTeacherMode || !isTeacherStatsOpen) {
+                panel.classList.add('hidden');
+                return;
+            }
+            panel.classList.remove('hidden');
+
+            const rounds = getAllRounds();
+            const rIdx = appState.activeRoundIndex;
+            const currentRound = rounds[rIdx];
+            const roundVotesMap = appState.votesByRound[rIdx] || {};
+            const defaultLabels = ['A', 'B', 'C', 'D'];
+
+            document.getElementById('stats-current-round-title').textContent = `${currentRound.shortTab}`;
+
+            // Group voters by option for the active round
+            const votersPerOption = [[], [], [], []];
+            let voterCounter = 1;
+            Object.entries(roundVotesMap).forEach(([vId, choiceIdx]) => {
+                if (typeof choiceIdx === 'number' && votersPerOption[choiceIdx]) {
+                    votersPerOption[choiceIdx].push(getVoterDisplayName(vId, voterCounter++));
+                }
+            });
+
+            const counts = votersPerOption.map(list => list.length);
+            const totalVotes = counts.reduce((a, b) => a + b, 0);
+            const maxCount = Math.max(...counts);
+
+            // Leading option badge
+            const leadingBadge = document.getElementById('stats-leading-badge');
+            if (totalVotes === 0) {
+                leadingBadge.textContent = 'Noch keine Stimmen in dieser Runde';
+            } else {
+                const leaders = [];
+                counts.forEach((c, idx) => {
+                    if (c === maxCount && c > 0) {
+                        const letter = currentRound.options[idx]?.label || defaultLabels[idx];
+                        leaders.push(`${letter}: ${currentRound.options[idx]?.title}`);
+                    }
+                });
+                const maxPct = Math.round((maxCount / totalVotes) * 100);
+                leadingBadge.textContent = `🏆 Meistgewählt: ${leaders.join(' & ')} (${maxCount} St. / ${maxPct}%)`;
+            }
+
+            // Render 4 mini detail cards for active round (including voter names)
+            const detailContainer = document.getElementById('stats-current-round-cards');
+            detailContainer.innerHTML = '';
+            currentRound.options.forEach((opt, idx) => {
+                const count = counts[idx];
+                const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+                const isLeader = totalVotes > 0 && count === maxCount && count > 0;
+                const letter = opt.label || defaultLabels[idx];
+                const voterNamesList = votersPerOption[idx];
+
+                const box = document.createElement('div');
+                box.className = `p-3.5 rounded-xl border flex flex-col justify-between gap-2 ${
+                    isLeader
+                        ? 'bg-blue-50/60 dark:bg-blue-950/30 border-blue-500/60'
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800'
+                }`;
+
+                const voterPillsHtml = voterNamesList.length > 0
+                    ? voterNamesList.map(name => `<span class="px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[11px] font-medium text-slate-700 dark:text-slate-300">${name}</span>`).join('')
+                    : `<span class="text-[11px] text-slate-400 italic">Keine Stimmen</span>`;
+
+                box.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-bold text-xs text-slate-900 dark:text-white">
+                                ${letter} • ${opt.title}
+                            </span>
+                            <span class="font-mono font-extrabold text-xs ${isLeader ? 'text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400'}">
+                                ${count} (${pct}%)
+                            </span>
+                        </div>
+                        <div class="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden mt-1.5">
+                            <div class="h-full rounded-full ${isLeader ? 'bg-blue-600' : 'bg-slate-400 dark:bg-slate-600'}" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                    <div class="pt-2 border-t border-slate-200/70 dark:border-slate-800 flex flex-wrap gap-1">
+                        ${voterPillsHtml}
+                    </div>
+                `;
+                detailContainer.appendChild(box);
+            });
+
+            // Render All Rounds Overview Table
+            const tbody = document.getElementById('stats-all-rounds-tbody');
+            tbody.innerHTML = '';
+            rounds.forEach((r, idx) => {
+                const rMap = appState.votesByRound[idx] || {};
+                const rCounts = [0, 0, 0, 0];
+                Object.values(rMap).forEach(cIdx => {
+                    if (typeof cIdx === 'number' && rCounts[cIdx] !== undefined) rCounts[cIdx]++;
+                });
+                const rTotal = rCounts.reduce((a, b) => a + b, 0);
+                const rMax = Math.max(...rCounts);
+
+                let leaderText = '<span class="text-slate-400 italic">Noch keine Stimmen</span>';
+                if (rTotal > 0 && rMax > 0) {
+                    const topOpts = [];
+                    rCounts.forEach((c, oIdx) => {
+                        if (c === rMax) {
+                            const l = r.options[oIdx]?.label || defaultLabels[oIdx];
+                            topOpts.push(`${l}: ${r.options[oIdx]?.title}`);
+                        }
+                    });
+                    const topPct = Math.round((rMax / rTotal) * 100);
+                    leaderText = `<span class="font-semibold text-blue-600 dark:text-blue-400">${topOpts.join(', ')}</span> <span class="text-xs text-slate-500">(${rMax} St. / ${topPct}%)</span>`;
+                }
+
+                const distHtml = rCounts.map((c, oIdx) => {
+                    const l = r.options[oIdx]?.label || defaultLabels[oIdx];
+                    const p = rTotal > 0 ? Math.round((c / rTotal) * 100) : 0;
+                    const highlight = rTotal > 0 && c === rMax && c > 0 ? 'font-bold text-slate-900 dark:text-white bg-blue-50 dark:bg-blue-950/50 border-blue-300 dark:border-blue-800' : 'text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800';
+                    return `<span class="inline-block px-2 py-0.5 rounded border text-[11px] font-mono mr-1 mb-1 ${highlight}" title="${r.options[oIdx]?.title}">${l}: ${c} (${p}%)</span>`;
+                }).join('');
+
+                const tr = document.createElement('tr');
+                tr.className = idx === rIdx ? 'bg-blue-50/30 dark:bg-blue-950/15' : '';
+                tr.innerHTML = `
+                    <td class="py-2.5 pr-3">
+                        <button onclick="selectRound(${idx})" class="text-left hover:underline font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                            ${idx === rIdx ? '<span class="w-2 h-2 rounded-full bg-blue-600 inline-block"></span>' : ''}
+                            <span>${r.shortTab}: ${r.question}</span>
+                        </button>
+                    </td>
+                    <td class="py-2.5 px-3 text-center font-mono font-bold text-slate-800 dark:text-slate-200">${rTotal}</td>
+                    <td class="py-2.5 px-3">${leaderText}</td>
+                    <td class="py-2.5 pl-3">${distHtml}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function toggleStatsPanel() {
+            if (!isTeacherMode) return;
+            isTeacherStatsOpen = !isTeacherStatsOpen;
+            renderTeacherStats();
+        }
+
+        function copyStatsReport() {
+            const rounds = getAllRounds();
+            const defaultLabels = ['A', 'B', 'C', 'D'];
+            const lines = [`📊 VIER ECKEN – ERGEBNISÜBERSICHT (Raum: ${currentRoomCode})\n`];
+
+            rounds.forEach((r, idx) => {
+                const rMap = appState.votesByRound[idx] || {};
+                const votersPerOpt = [[], [], [], []];
+                let counter = 1;
+                Object.entries(rMap).forEach(([vId, cIdx]) => {
+                    if (typeof cIdx === 'number' && votersPerOpt[cIdx]) {
+                        votersPerOpt[cIdx].push(getVoterDisplayName(vId, counter++));
+                    }
+                });
+                const total = votersPerOpt.reduce((acc, arr) => acc + arr.length, 0);
+                lines.push(`${idx + 1}. ${r.question} (Gesamt: ${total} Stimmen)`);
+                r.options.forEach((opt, oIdx) => {
+                    const count = votersPerOpt[oIdx].length;
+                    const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                    const l = opt.label || defaultLabels[oIdx];
+                    const namesStr = count > 0 ? ` [${votersPerOpt[oIdx].join(', ')}]` : '';
+                    lines.push(`   ${l}) ${opt.title}: ${count} (${pct}%)${namesStr}`);
+                });
+                lines.push('');
+            });
+
+            const textarea = document.createElement('textarea');
+            textarea.value = lines.join('\n');
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast('📋 Ergebnis-Bericht in die Zwischenablage kopiert!');
+            } catch (e) {}
+            document.body.removeChild(textarea);
         }
 
         // =====================================================
@@ -1062,6 +1366,7 @@
                     renderAll();
                 }
             }
+            renderTeacherStats();
         }
 
         function toggleTeacherMode() {
@@ -1480,6 +1785,12 @@
             // Start in clean light mode by default for maximum clarity, or keep dark if user toggles
             document.documentElement.classList.remove('dark');
             document.getElementById('theme-icon').textContent = '🌙';
+
+            // Pre-fill saved voter name if present
+            const nameInput = document.getElementById('voter-name-input');
+            if (nameInput && myVoterName) {
+                nameInput.value = myVoterName;
+            }
 
             renderAll();
             updateTimerDisplay();
